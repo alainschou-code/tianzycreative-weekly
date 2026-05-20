@@ -182,24 +182,13 @@ function CalendarPage() {
 }
 
 export default function App() {
-  const { user, isLoading, error } = useAuth();
+  const { user, isLoading } = useAuth();
 
   if (isLoading) {
     return (
       <div className="loading-page">
         <div className="spinner" />
         <span>初始化系統中...</span>
-      </div>
-    );
-  }
-
-  if (error && !user) {
-    return (
-      <div className="loading-page">
-        <div className="error-box">
-          <p>{error}</p>
-          <button className="btn-primary" onClick={() => window.location.reload()}>重新整理</button>
-        </div>
       </div>
     );
   }
