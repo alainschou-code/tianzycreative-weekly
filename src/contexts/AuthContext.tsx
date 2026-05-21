@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      await initSystemSheet(ids.systemSheetId);
+      if (ids.systemSheetId) await initSystemSheet(ids.systemSheetId);
       const [employees, supervisors] = await Promise.all([
         loadEmployees(ids.systemSheetId),
         loadSupervisors(ids.systemSheetId),
