@@ -1,7 +1,10 @@
+import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 export function LoginPage() {
   const { login, isLoading, error } = useAuth();
+  const [clicking, setClicking] = React.useState(false);
+  const handleLogin = () => { setClicking(true); login(); };
 
   return (
     <div className="login-page">
@@ -13,8 +16,8 @@ export function LoginPage() {
 
         {error && <div className="login-error">{error}</div>}
 
-        <button className="btn-google-login" onClick={login} disabled={isLoading}>
-          {isLoading ? (
+        <button className="btn-google-login" onClick={handleLogin} disabled={clicking}>
+            {clicking ? (
             <span className="spinner-sm" />
           ) : (
             <svg viewBox="0 0 48 48" width="20" height="20">
