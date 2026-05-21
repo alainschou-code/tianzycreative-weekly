@@ -81,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const googleLogin = useGoogleLogin({
+    flow: 'implicit',
     scope: [
       'email profile',
       'https://www.googleapis.com/auth/spreadsheets',
@@ -100,7 +101,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
       }
     },
-    onError: () => {
+    onError: (err) => {
+      console.error('onError:', err);
       setError('Google 登入失敗，請重試');
       setIsLoading(false);
     },
