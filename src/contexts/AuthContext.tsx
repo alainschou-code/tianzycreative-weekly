@@ -38,12 +38,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (cached) {
         ids = JSON.parse(cached) as SystemIds;
       } else {
-        const [systemSheetId, workFolderId] = await Promise.all([
-          findOrCreateSystemSheet(),
-          findOrCreateWorkFolder(),
-        ]);
-        ids = { systemSheetId, workFolderId };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+        try {
+          const [systemSheetId, workFolderId] = await Promise.all([
+            findOrCreateSystemSheet(),
+            findOrCreateWorkFolder(),
+          ]);
+          ids = { systemSheetId, workFolderId };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+        } catch (e) {
+          console.warn(e);
+          ids = { systemSheetId: '', workFolderId: ''  };
+        }
       }
 
       await initSystemSheet(ids.systemSheetId);
