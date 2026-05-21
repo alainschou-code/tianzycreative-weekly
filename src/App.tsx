@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { LoginPage } from './components/LoginPage';
 import { ProfileSetup } from './components/ProfileSetup';
@@ -183,12 +183,21 @@ function CalendarPage() {
 
 export default function App() {
   const { user, isLoading } = useAuth();
+  const [forceShow, setForceShow] = React.useState(false);
+  React.useEffect(() => {
+    if (isLoading && !forceShow) {
+      const t = setTimeout(() => setForceShow(true), 3000);
+      return () => clearTimeout(t);
+    }
+    setForceShow(false);
+  }, [isLoading]);
 
-  if (isLoading) {
+  if (isLoading && !forceShow) {
     return (
       <div className="loading-page">
         <div className="spinner" />
         <span>初始化系統中...</span>
+        <span style={{fontSize:12,color:"#999",marginTop:8}}>請先點選 Google 登入</span>
       </div>
     );
   }
