@@ -27,7 +27,7 @@ export function LoginPage() {
               <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.96 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
             </svg>
           )}
-          {isLoading ? '登入中...' : '使用 Google 帳號登入'}
+          {clicking ? '登入中...' : '使用 Google 帳號登入'}
         </button>
 
         <p className="login-note">僅供天子創意員工使用</p>
