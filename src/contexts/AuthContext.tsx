@@ -87,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       'https://www.googleapis.com/auth/drive',
     ].join(' '),
     onSuccess: async (response) => {
+      console.log("onSuccess triggered", response);
       // Fetch user profile with the token
       try {
         const profile = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
