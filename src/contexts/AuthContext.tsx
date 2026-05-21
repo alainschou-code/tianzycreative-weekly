@@ -73,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isSupervisor,
       });
     } catch (err) {
+      console.error("initSystem error:", err);
       setError(err instanceof Error ? err.message : '初始化失敗，請重試');
     } finally {
       setIsLoading(false);
@@ -93,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }).then(r => r.json()) as { email: string; name: string; picture?: string };
         await initSystem(response.access_token, profile.email, profile.name, profile.picture);
       } catch {
+        console.error("onSuccess catch error");
         setError('無法取得使用者資料，請重試');
         setIsLoading(false);
       }
