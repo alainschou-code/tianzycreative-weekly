@@ -868,3 +868,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 
 .employee-info-bar { padding-left: 0 !important; }
 .employee-info-bar { padding-left: 0 !important; }
+.slot-line.after-morning { display: none !important; }
+
+.work-item-title { font-size: 15px !important; font-weight: 700 !important; }
+.work-item-project { font-size: 12px !important; }
+.work-item { padding-left: 26px !important; }
+
