@@ -180,7 +180,7 @@ export const saveWorkItems = async (
 
 export const loadProjectNames = async (): Promise<string[]> => {
   try {
-    const res = await sheetsGetValues(PROJECT_SHEET_ID, 'C2:C');
+    const res = await sheetsGetValues(PROJECT_SHEET_ID, '建案總表2!C2:C');
     return (res.values ?? []).flat().map(v => v.trim()).filter(Boolean);
   } catch {
     return [];
