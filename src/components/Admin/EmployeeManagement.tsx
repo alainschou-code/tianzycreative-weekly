@@ -16,6 +16,7 @@ export function EmployeeManagement({ employees, onChange, saving }: Props) {
   const [form, setForm] = useState<Omit<Employee, 'id'>>(EMPTY);
   const [editId, setEditId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +57,10 @@ export function EmployeeManagement({ employees, onChange, saving }: Props) {
     onChange(employees.filter(e => e.id !== id));
   };
 
+  const displayed = employees.filter(emp =>
+    !search || emp.name.includes(search) || emp.email.includes(search)
+  );
+
   return (
     <div className="admin-section">
       <h3>員工資料管理</h3>
@@ -90,6 +95,14 @@ export function EmployeeManagement({ employees, onChange, saving }: Props) {
         </div>
       </form>
 
+      <input
+        className="form-input"
+        style={{ marginBottom: 12, maxWidth: 320 }}
+        placeholder="搜尋員工姓名或 Gmail..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+      />
+
       <table className="data-table">
         <thead>
           <tr>
@@ -102,9 +115,9 @@ export function EmployeeManagement({ employees, onChange, saving }: Props) {
           </tr>
         </thead>
         <tbody>
-          {employees.length === 0 ? (
+          {displayed.length === 0 ? (
             <tr><td colSpan={6} className="empty-row">尚無員工資料</td></tr>
-          ) : employees.map(emp => (
+          ) : displayed.map(emp => (
             <tr key={emp.id}>
               <td>{emp.name}</td>
               <td>{emp.email}</td>
