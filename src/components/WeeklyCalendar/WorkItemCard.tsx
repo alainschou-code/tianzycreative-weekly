@@ -13,34 +13,20 @@ interface Props {
   onCopy: () => void;
 }
 
-// 計算卡片的 top（px），正確處理午休偏移
 function itemTop(startSlot: number, slotH: number): number {
-  if (startSlot < MORNING_SLOTS) {
-    return startSlot * slotH + 2;
-  }
+  if (startSlot < MORNING_SLOTS) return startSlot * slotH + 2;
   return MORNING_SLOTS * slotH + BREAK_HEIGHT + (startSlot - MORNING_SLOTS) * slotH + 2;
 }
 
-// 計算卡片的 height（px），正確處理跨越午休的情況
 function itemHeight(startSlot: number, duration: number, slotH: number): number {
   const endSlot = Math.min(startSlot + duration, TOTAL_SLOTS);
-  const startY = itemTop(startSlot, slotH) - 2; // 去掉 +2 偏移
-  const endSlotIsPM = endSlot > MORNING_SLOTS;
-  const startSlotIsPM = startSlot >= MORNING_SLOTS;
-
   let endY: number;
-  if (endSlotIsPM) {
+  if (endSlot > MORNING_SLOTS) {
     endY = MORNING_SLOTS * slotH + BREAK_HEIGHT + (endSlot - MORNING_SLOTS) * slotH;
   } else {
     endY = endSlot * slotH;
   }
-
-  // 跨越午休：需加上 BREAK_HEIGHT
-  const crossesBreak = startSlot < MORNING_SLOTS && endSlot > MORNING_SLOTS;
-  if (crossesBreak) {
-    return endY - startY - 4;
-  }
-
+  const startY = itemTop(startSlot, slotH) - 2;
   return endY - startY - 4;
 }
 
@@ -50,28 +36,34 @@ export function WorkItemCard({
 }: Props) {
   const slotH = parseFloat(
     getComputedStyle(document.documentElement).getPropertyValue('--slot-h'),
-  ) || 40;
+  ) || 56;
 
   const top = itemTop(item.startSlot, slotH);
   const height = itemHeight(item.startSlot, item.duration, slotH);
-
   const showProject = !!item.projectName && item.projectName !== item.title && height >= 52;
   const showDuration = height >= 28;
-  const titleLines = Math.max(1, Math.floor((height - 22) / 15));
+
+  const classNames = [
+    'work-item',
+    isDragging ? 'dragging' : '',
+    isPreview ? 'preview' : '',
+    item.completed ? 'completed' : '',
+    isCopied ? 'copied' : '',
+  ].filter(Boolean).join(' ');
 
   return (
     <div
-      className={`work-item${isDragging ? ' dragging' : ''}${isPreview ? ' preview' : ''}${item.completed ? ' completed' : ''}${isCopied ? ' copied' : ''}`}
+      className={classNames}
       style={{
         position: 'absolute',
         left: 3,
         right: 3,
-        top: top,
-        height: height,
+        top,
+        height,
         backgroundColor: item.color,
         touchAction: 'none',
         borderRadius: 6,
-        padding: '6px 7px 16px 30px',
+        padding: '6px 7px 16px 32px',
         cursor: 'grab',
         color: '#fff',
         overflow: 'hidden',
@@ -83,8 +75,10 @@ export function WorkItemCard({
       onClick={isDragging ? undefined : (e) => { e.stopPropagation(); onClick(); }}
       title={[item.title, item.projectName, item.content].filter(Boolean).join('\n')}
     >
+      {/* 勾選圈 */}
       <button
         className={`item-check${item.completed ? ' checked' : ''}`}
+        style={{ position: 'absolute', top: 6, left: 7, width: 16, height: 16 }}
         onPointerDown={e => e.stopPropagation()}
         onClick={e => { e.stopPropagation(); onToggleComplete(); }}
         title={item.completed ? '取消完成' : '標記為完成'}
@@ -97,6 +91,7 @@ export function WorkItemCard({
         )}
       </button>
 
+      {/* 複製按鈕 */}
       <button
         className={`item-copy${isCopied ? ' active' : ''}`}
         onPointerDown={e => e.stopPropagation()}
@@ -110,24 +105,51 @@ export function WorkItemCard({
         </svg>
       </button>
 
+      {/* 標題 */}
       <div
-        className="work-item-title"
-        style={titleLines === 1
-          ? { display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
-          : { display: '-webkit-box', WebkitLineClamp: titleLines, WebkitBoxOrient: 'vertical', overflow: 'hidden' }
-        }
+        style={{
+          fontSize: 14,
+          fontWeight: 700,
+          lineHeight: 1.4,
+          wordBreak: 'break-word',
+          overflow: 'hidden',
+          display: '-webkit-box',
+          WebkitLineClamp: Math.max(1, Math.floor((height - 24) / 20)),
+          WebkitBoxOrient: 'vertical',
+        }}
       >
         {item.title}
       </div>
 
+      {/* 建案名稱 */}
       {showProject && (
-        <div className="work-item-project">{item.projectName}</div>
+        <div style={{
+          fontSize: 12,
+          opacity: 0.85,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          marginTop: 2,
+        }}>
+          {item.projectName}
+        </div>
       )}
 
+      {/* 時長 */}
       {showDuration && (
-        <div className="work-item-duration">{formatDuration(item.duration)}</div>
+        <div style={{
+          position: 'absolute',
+          bottom: 3,
+          right: 6,
+          fontSize: 11,
+          opacity: 0.85,
+          whiteSpace: 'nowrap',
+        }}>
+          {formatDuration(item.duration)}
+        </div>
       )}
 
+      {/* 拖曳把手 */}
       <div
         className="resize-handle"
         onPointerDown={e => { e.stopPropagation(); onResizePointerDown(e); }}
