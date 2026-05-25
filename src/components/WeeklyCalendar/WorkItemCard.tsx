@@ -71,7 +71,7 @@ export function WorkItemCard({
         backgroundColor: item.color,
         touchAction: 'none',
         borderRadius: 6,
-        padding: '4px 7px 16px 26px',
+        padding: '6px 7px 16px 30px',
         cursor: 'grab',
         color: '#fff',
         overflow: 'hidden',

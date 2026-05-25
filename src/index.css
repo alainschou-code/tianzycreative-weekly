@@ -882,3 +882,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .time-label { font-size: 10px; padding-right: 4px; }
 :root { --time-w: 52px; }
 
+
+.work-item-title { font-size: 14px !important; font-weight: 700 !important; line-height: 1.4 !important; }
+.work-item-project { font-size: 12px !important; margin-top: 2px !important; }
+.item-check { top: 6px !important; left: 6px !important; width: 16px !important; height: 16px !important; }
+
