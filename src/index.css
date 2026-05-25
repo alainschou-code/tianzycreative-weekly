@@ -888,3 +888,4 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .item-check { top: 6px !important; left: 6px !important; width: 16px !important; height: 16px !important; }
 
 .work-item-title { word-break: break-all !important; }
+.work-item-title { overflow: visible !important; white-space: normal !important; word-break: break-word !important; }
