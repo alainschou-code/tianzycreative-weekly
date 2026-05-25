@@ -25,7 +25,8 @@ interface AllReportEntry {
 
 export function ReportViewer({ employees, workFolderId }: Props) {
   const [reportFiles, setReportFiles] = useState<ReportFile[]>([]);
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
+  const [selectedWeekIndex, setSelectedWeekIndex] = useState(0); // 0 = 最新
   const [workItems, setWorkItems] = useState<WorkItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingItems, setLoadingItems] = useState(false);
@@ -51,36 +52,54 @@ export function ReportViewer({ employees, workFolderId }: Props) {
       .finally(() => setLoading(false));
   }, [workFolderId]);
 
-  const openReport = async (file: ReportFile) => {
-    setSelectedFile(file.id);
+  // 取得選中員工的所有週報，由新到舊
+  const employeeReports = selectedEmployee
+    ? reportFiles.filter(r => r.employeeName === selectedEmployee)
+    : [];
+
+  const currentReport = employeeReports[selectedWeekIndex] ?? null;
+
+  // 當選擇員工或週次改變時載入資料
+  useEffect(() => {
+    if (!currentReport) return;
     setWorkItems([]);
     setWeekReports([]);
     setLoadingItems(true);
-    try {
-      const items = await loadWorkItems(file.id);
-      setWorkItems(items);
-      const sameWeek = reportFiles.filter(r => r.weekStart === file.weekStart && r.id !== file.id);
-      if (sameWeek.length > 0) {
-        setLoadingWeek(true);
-        const entries: AllReportEntry[] = [{ employeeName: file.employeeName, items }];
-        await Promise.all(
-          sameWeek.map(async r => {
-            try {
-              const ri = await loadWorkItems(r.id);
-              entries.push({ employeeName: r.employeeName, items: ri });
-            } catch {
-              entries.push({ employeeName: r.employeeName, items: [] });
-            }
-          }),
+
+    (async () => {
+      try {
+        const items = await loadWorkItems(currentReport.id);
+        setWorkItems(items);
+        const sameWeek = reportFiles.filter(r =>
+          r.weekStart === currentReport.weekStart && r.id !== currentReport.id
         );
-        setWeekReports(entries);
-        setLoadingWeek(false);
+        if (sameWeek.length > 0) {
+          setLoadingWeek(true);
+          const entries: AllReportEntry[] = [{ employeeName: currentReport.employeeName, items }];
+          await Promise.all(
+            sameWeek.map(async r => {
+              try {
+                const ri = await loadWorkItems(r.id);
+                entries.push({ employeeName: r.employeeName, items: ri });
+              } catch {
+                entries.push({ employeeName: r.employeeName, items: [] });
+              }
+            }),
+          );
+          setWeekReports(entries);
+          setLoadingWeek(false);
+        }
+      } catch {
+        setWorkItems([]);
+      } finally {
+        setLoadingItems(false);
       }
-    } catch {
-      setWorkItems([]);
-    } finally {
-      setLoadingItems(false);
-    }
+    })();
+  }, [currentReport?.id]);
+
+  const selectEmployee = (name: string) => {
+    setSelectedEmployee(name);
+    setSelectedWeekIndex(0); // 重設為最新週
   };
 
   const departments = [...new Set(employees.map(e => e.department))];
@@ -95,13 +114,12 @@ export function ReportViewer({ employees, workFolderId }: Props) {
   const submittedCount = employees.filter(e => submittedNames.has(e.name)).length;
   const notSubmitted = employees.filter(e => !submittedNames.has(e.name));
 
-  const filtered = reportFiles.filter(r => {
-    const emp = employees.find(e => e.name === r.employeeName);
+  // 左側只顯示不重複的員工名單
+  const uniqueEmployees = [...new Set(reportFiles.map(r => r.employeeName))].filter(name => {
+    const emp = employees.find(e => e.name === name);
     if (deptFilter && emp?.department !== deptFilter) return false;
-    return !filter || r.employeeName.includes(filter) || r.weekStart.includes(filter);
+    return !filter || name.includes(filter);
   });
-
-  const selectedReport = reportFiles.find(r => r.id === selectedFile);
 
   if (loading) return <div className="loading-inline"><div className="spinner-sm" /> 載入中...</div>;
 
@@ -128,10 +146,11 @@ export function ReportViewer({ employees, workFolderId }: Props) {
       </div>
 
       <div className="report-layout">
+        {/* 左側：員工名單（不重複） */}
         <div className="report-list">
           <input
             className="form-input"
-            placeholder="搜尋員工或日期..."
+            placeholder="搜尋員工..."
             value={filter}
             onChange={e => setFilter(e.target.value)}
           />
@@ -145,53 +164,97 @@ export function ReportViewer({ employees, workFolderId }: Props) {
             {departments.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
           <div className="report-file-list">
-            {filtered.length === 0 ? (
+            {uniqueEmployees.length === 0 ? (
               <div className="empty-row">無報表資料</div>
-            ) : filtered.map(r => {
-              const emp = employees.find(e => e.name === r.employeeName);
+            ) : uniqueEmployees.map(name => {
+              const emp = employees.find(e => e.name === name);
+              const reports = reportFiles.filter(r => r.employeeName === name);
               return (
                 <div
-                  key={r.id}
-                  className={`report-file-item${selectedFile === r.id ? ' active' : ''}`}
-                  onClick={() => openReport(r)}
+                  key={name}
+                  className={`report-file-item${selectedEmployee === name ? ' active' : ''}`}
+                  onClick={() => selectEmployee(name)}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span className="rfi-name">{r.employeeName}</span>
+                    <span className="rfi-name">{name}</span>
+                    <span className="badge-default" style={{ fontSize: 11 }}>{reports.length}週</span>
                   </div>
                   {emp && <div className="rfi-dept">{emp.department}</div>}
-                  <div className="rfi-week">{formatWeekLabel(isoToDate(r.weekStart))}</div>
                 </div>
               );
             })}
           </div>
         </div>
 
+        {/* 右側：週報內容 + 週次切換 */}
         <div className="report-detail">
-          {!selectedReport ? (
-            <div className="report-placeholder">← 選擇左側報表查看</div>
-          ) : loadingItems ? (
-            <div className="loading-inline"><div className="spinner-sm" /> 載入中...</div>
+          {!selectedEmployee ? (
+            <div className="report-placeholder">← 選擇左側員工查看週報</div>
           ) : (
             <>
-              <div className="report-detail-header">
-                <h4>{selectedReport.employeeName}</h4>
-                <span>{formatWeekLabel(isoToDate(selectedReport.weekStart))}</span>
-                {workItems.length === 0 && <span className="warn-badge">尚未填寫</span>}
+              {/* 週次切換列 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                marginBottom: 16,
+                paddingBottom: 12,
+                borderBottom: '1px solid var(--border)',
+              }}>
+                <h4 style={{ fontSize: 16, fontWeight: 600, marginRight: 'auto' }}>
+                  {selectedEmployee}
+                </h4>
+                <button
+                  className="btn-secondary"
+                  style={{ padding: '5px 12px', fontSize: 13 }}
+                  onClick={() => setSelectedWeekIndex(i => Math.min(i + 1, employeeReports.length - 1))}
+                  disabled={selectedWeekIndex >= employeeReports.length - 1}
+                >
+                  ‹ 上週
+                </button>
+                <span style={{ fontSize: 13, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
+                  {currentReport ? formatWeekLabel(isoToDate(currentReport.weekStart)) : '—'}
+                </span>
+                <button
+                  className="btn-secondary"
+                  style={{ padding: '5px 12px', fontSize: 13 }}
+                  onClick={() => setSelectedWeekIndex(i => Math.max(i - 1, 0))}
+                  disabled={selectedWeekIndex <= 0}
+                >
+                  下週 ›
+                </button>
+                <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                  第 {selectedWeekIndex + 1} / {employeeReports.length} 週
+                </span>
               </div>
-              <WeekCalendarView
-                weekDays={getWeekDays(isoToDate(selectedReport.weekStart))}
-                items={workItems}
-              />
-              {loadingWeek ? (
-                <div className="loading-inline" style={{ marginTop: 16 }}>
-                  <div className="spinner-sm" /> 載入本週全員資料中...
-                </div>
+
+              {loadingItems ? (
+                <div className="loading-inline"><div className="spinner-sm" /> 載入中...</div>
+              ) : !currentReport ? (
+                <div className="report-placeholder">此員工尚無週報資料</div>
               ) : (
-                <WorkTimeAnalysis
-                  items={workItems}
-                  employeeName={selectedReport.employeeName}
-                  allReports={weekReports.length > 1 ? weekReports : undefined}
-                />
+                <>
+                  {workItems.length === 0 && (
+                    <span className="warn-badge" style={{ marginBottom: 12, display: 'inline-block' }}>
+                      尚未填寫
+                    </span>
+                  )}
+                  <WeekCalendarView
+                    weekDays={getWeekDays(isoToDate(currentReport.weekStart))}
+                    items={workItems}
+                  />
+                  {loadingWeek ? (
+                    <div className="loading-inline" style={{ marginTop: 16 }}>
+                      <div className="spinner-sm" /> 載入本週全員資料中...
+                    </div>
+                  ) : (
+                    <WorkTimeAnalysis
+                      items={workItems}
+                      employeeName={currentReport.employeeName}
+                      allReports={weekReports.length > 1 ? weekReports : undefined}
+                    />
+                  )}
+                </>
               )}
             </>
           )}
