@@ -878,3 +878,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .time-label { font-size: 10px; padding-right: 4px; }
 :root { --time-w: 52px; }
 
+
+.time-label { font-size: 10px; padding-right: 4px; }
+:root { --time-w: 52px; }
+
