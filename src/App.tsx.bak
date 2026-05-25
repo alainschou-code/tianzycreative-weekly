@@ -29,156 +29,75 @@ function CalendarPage() {
   const handleExport = useCallback(async () => {
     if (!captureRef.current) return;
     setExporting(true);
-    await new Promise(r => setTimeout(r, 100));
 
-    const slotH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--slot-h')) || 56;
-    const gridH = slotH * 16 + 36;
-    const EXPORT_W = 1440;
+    // Brief delay so exporting state renders
+    await new Promise(r => setTimeout(r, 80));
 
     const offscreen = document.createElement('div');
-    Object.assign(offscreen.style, {
-      position: 'fixed',
-      left: '-99999px',
-      top: '0',
-      width: EXPORT_W + 'px',
-      background: '#f5f6f8',
-      overflow: 'visible',
-      fontFamily: "'PingFang TC', 'Noto Sans TC', system-ui, sans-serif",
-    });
 
     try {
       const { default: html2canvas } = await import('html2canvas');
 
-      // Banner HTML — 直接用 inline style 確保寬度正確
-      const banner = document.createElement('div');
-      Object.assign(banner.style, {
-        display: 'flex',
-        alignItems: 'center',
-        width: EXPORT_W + 'px',
-        background: '#ffffff',
-        borderBottom: '2px solid #e0e3ea',
-        marginBottom: '0',
-        overflow: 'hidden',
+      // Compute grid height from CSS variable
+      const slotH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--slot-h')) || 56;
+      const gridH = slotH * 16 + 36; // TOTAL_SLOTS * slotH + BREAK_HEIGHT
+
+      // Off-screen container: fixed 1440px width, 24px padding, auto height
+      Object.assign(offscreen.style, {
+        position: 'fixed',
+        left: '-10000px',
+        top: '0',
+        width: '1440px',
+        background: '#f5f6f8',
+        padding: '24px',
+        boxSizing: 'border-box',
+        overflow: 'visible',
       });
 
-      const brandBlock = document.createElement('span');
-      Object.assign(brandBlock.style, {
-        background: '#1a6fdf',
-        color: '#fff',
-        padding: "22px 36px",
-        fontSize: '20px',
-        fontWeight: '800',
-        letterSpacing: '2px',
-        whiteSpace: 'nowrap',
-        display: 'flex',
-        alignItems: 'center',
-        flexShrink: '0',
-      });
-      brandBlock.textContent = '天子創意';
-
-      const divider = document.createElement('div');
-      Object.assign(divider.style, {
-        width: '1px',
-        height: '36px',
-        background: '#e0e3ea',
-        margin: '0 20px',
-        flexShrink: '0',
-      });
-
-      const info = document.createElement('div');
-      Object.assign(info.style, {
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        gap: '3px',
-      });
-
-      const nameSpan = document.createElement('span');
-      Object.assign(nameSpan.style, { fontSize: '15px', fontWeight: '700', color: '#1d2028' });
-      const empName = employee?.name ?? user?.name ?? '';
-      const empDept = employee?.department ?? '';
-      nameSpan.textContent = empName + (empDept ? '　' + empDept : '');
-
-      const weekSpan = document.createElement('span');
-      Object.assign(weekSpan.style, { fontSize: '12px', color: '#5a6070' });
-      weekSpan.textContent = formatWeekLabel(weekStart);
-
-      info.appendChild(nameSpan);
-      info.appendChild(weekSpan);
-
-      const spacer = document.createElement('div');
-      spacer.style.flex = '1';
-
-      const stamp = document.createElement('span');
-      Object.assign(stamp.style, {
-        padding: '10px 24px',
-        fontSize: '12px',
-        color: '#9099aa',
-        whiteSpace: 'nowrap',
-        display: 'flex',
-        alignItems: 'center',
-      });
-      stamp.textContent = '週工作報表系統';
-
-      banner.appendChild(brandBlock);
-      banner.appendChild(divider);
-      banner.appendChild(info);
-      banner.appendChild(spacer);
-      banner.appendChild(stamp);
-
-      // Clone capture area（不含 export-meta，改用上面的 banner）
+      // Deep-clone the capture area
       const clone = captureRef.current.cloneNode(true) as HTMLElement;
-
-      // 移除 clone 裡的 export-meta
-      const metaInClone = clone.querySelector('.export-meta');
-      if (metaInClone) metaInClone.remove();
-
       Object.assign(clone.style, {
-        display: 'flex',
-        flexDirection: 'column',
+        display: 'block',
+        flex: 'none',
         overflow: 'visible',
         height: 'auto',
-        width: EXPORT_W + 'px',
-        padding: '16px 24px 24px',
-        boxSizing: 'border-box',
-        background: '#f5f6f8',
+        maxHeight: 'none',
+        width: '100%',
       });
 
-      const calWrap = clone.querySelector('.calendar-wrap') as HTMLElement | null;
-      if (calWrap) {
-        Object.assign(calWrap.style, {
-          overflow: 'visible',
-          height: 'auto',
-          flex: 'none',
-          marginBottom: '0',
-        });
-      }
+      // Show export banner
+      const exportMeta = clone.querySelector('.export-meta') as HTMLElement | null;
+      if (exportMeta) exportMeta.style.display = 'flex';
 
+      // Unconstrain calendar body so full grid is visible
       const calBody = clone.querySelector('.calendar-body') as HTMLElement | null;
       if (calBody) {
         Object.assign(calBody.style, {
           overflow: 'visible',
-          height: (gridH + 80) + 'px',
+          height: 'auto',
           maxHeight: 'none',
           paddingBottom: '80px',
         });
       }
 
-      clone.querySelectorAll<HTMLElement>('.day-column').forEach(col => {
-        col.style.height = gridH + 'px';
+      // Give explicit heights so absolute-positioned children are contained
+      const timeGutter = clone.querySelector('.calendar-body .time-gutter') as HTMLElement | null;
+      if (timeGutter) timeGutter.style.height = `${gridH}px`;
+      clone.querySelectorAll('.day-column').forEach(col => {
+        (col as HTMLElement).style.height = `${gridH}px`;
       });
-      const tg = clone.querySelector<HTMLElement>('.calendar-body .time-gutter');
-      if (tg) tg.style.height = gridH + 'px';
 
-      const calHeader = clone.querySelector<HTMLElement>('.calendar-header');
-      if (calHeader) calHeader.style.position = 'relative';
+      // Remove overflow from remaining ancestors inside clone
+      const calWrap = clone.querySelector('.calendar-wrap') as HTMLElement | null;
+      if (calWrap) Object.assign(calWrap.style, { overflow: 'visible', height: 'auto', flex: 'none' });
 
-      offscreen.appendChild(banner);
       offscreen.appendChild(clone);
       document.body.appendChild(offscreen);
 
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r as FrameRequestCallback)));
+      // Two frames for layout reflow
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
+      const totalW = offscreen.scrollWidth;
       const totalH = offscreen.scrollHeight;
 
       const canvas = await html2canvas(offscreen, {
@@ -189,17 +108,16 @@ function CalendarPage() {
         scrollY: 0,
         x: 0,
         y: 0,
-        width: EXPORT_W,
+        width: totalW,
         height: totalH,
-        windowWidth: EXPORT_W,
+        windowWidth: totalW,
         windowHeight: totalH,
         logging: false,
-        imageTimeout: 10000,
-        allowTaint: true,
+        imageTimeout: 8000,
       });
 
       const link = document.createElement('a');
-      link.download = (employee?.name ?? user?.name ?? '員工') + '_週報_' + weekKey + '.png';
+      link.download = `${employee?.name ?? user?.name ?? '員工'}_週報_${weekKey}.png`;
       link.href = canvas.toDataURL('image/png', 1.0);
       link.click();
     } catch (err) {
@@ -209,7 +127,7 @@ function CalendarPage() {
       if (offscreen.parentNode) document.body.removeChild(offscreen);
       setExporting(false);
     }
-  }, [employee, user, weekKey, weekStart]);
+  }, [employee, user, weekKey]);
 
   if (showAdmin && user?.isSupervisor) {
     return <AdminPanel onBack={() => setShowAdmin(false)} />;
@@ -231,7 +149,16 @@ function CalendarPage() {
         exporting={exporting}
       />
       <main className="app-main">
+        {/* capture-area wraps everything that appears in the screenshot */}
         <div ref={captureRef} className="capture-area">
+          {/* Banner shown only during export */}
+          <div className="export-meta" aria-hidden="true">
+            <span className="em-brand">天子創意</span>
+            <span className="em-name">{employee?.name ?? user?.name}</span>
+            {employee?.department && <span className="emp-dept">{employee.department}</span>}
+            <span className="em-week">{formatWeekLabel(weekStart)}</span>
+          </div>
+
           {employee && (
             <div className="employee-info-bar">
               <span className="emp-name">{employee.name}</span>
@@ -239,7 +166,6 @@ function CalendarPage() {
               <span className="emp-seniority">年資 {formatSeniority(employee.startDate)}</span>
             </div>
           )}
-
           <WeeklyCalendar
             weekDays={weekDays}
             items={items}
@@ -271,12 +197,14 @@ export default function App() {
       <div className="loading-page">
         <div className="spinner" />
         <span>初始化系統中...</span>
-        <span style={{ fontSize: 12, color: '#999', marginTop: 8 }}>請先點選 Google 登入</span>
+        <span style={{fontSize:12,color:"#999",marginTop:8}}>請先點選 Google 登入</span>
       </div>
     );
   }
 
   if (!user) return <LoginPage />;
+
+  // First-time user (or supervisor without profile): show profile setup
   if (!user.employee) return <ProfileSetup />;
 
   return <CalendarPage />;

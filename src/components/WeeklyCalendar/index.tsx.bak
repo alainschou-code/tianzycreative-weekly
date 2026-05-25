@@ -8,6 +8,7 @@ import { formatDateHeader } from '../../utils/dateUtils';
 import { WorkItemCard } from './WorkItemCard';
 import { WorkItemModal } from './WorkItemModal';
 
+// Reads the CSS-computed --slot-h value in pixels (always current)
 const getCSSSlotH = (): number =>
   parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--slot-h')) || SLOT_HEIGHT;
 
@@ -56,24 +57,10 @@ export function WeeklyCalendar({ weekDays, items, projectNames, onAdd, onUpdate,
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [modal, setModal] = useState<{ item?: WorkItem; day: number; startSlot: number } | null>(null);
   const [copiedItem, setCopiedItem] = useState<WorkItem | null>(null);
-  const [activeDayIndex, setActiveDayIndex] = useState<number>(() => {
-    const today = new Date().getDay();
-    // 0=Sun,1=Mon,...,5=Fri,6=Sat → map to 0=Mon..4=Fri
-    const mapped = today === 0 ? 4 : today === 6 ? 4 : today - 1;
-    return Math.min(4, Math.max(0, mapped));
-  });
-  const [isMobile, setIsMobile] = useState(false);
   const gridBodyRef = useRef<HTMLDivElement>(null);
   const dayColRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Detect mobile
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 640);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
-
+  // Computed once per render; refreshed automatically on resize (via setResizeTick)
   const slotH = getCSSSlotH();
   const gridH = slotH * TOTAL_SLOTS + BREAK_HEIGHT;
 
@@ -90,6 +77,8 @@ export function WeeklyCalendar({ weekDays, items, projectNames, onAdd, onUpdate,
   const getRelativeY = useCallback((clientY: number): number => {
     if (!gridBodyRef.current) return 0;
     const rect = gridBodyRef.current.getBoundingClientRect();
+    // Must add scrollTop: rect.top is the viewport edge of the scroll container,
+    // not the content edge — without this, dragging while scrolled gives wrong slots.
     return clientY - rect.top + gridBodyRef.current.scrollTop;
   }, []);
 
@@ -148,7 +137,8 @@ export function WeeklyCalendar({ weekDays, items, projectNames, onAdd, onUpdate,
       const day = newDay >= 0 ? newDay : dragState.previewDay;
       setDragState(prev => prev ? { ...prev, previewSlot: newSlot, previewDay: day } : null);
     } else {
-      const targetSlot = yToSlot(relY, sh);
+      const sh2 = getCSSSlotH();
+      const targetSlot = yToSlot(relY, sh2);
       const newDuration = Math.max(1, Math.min(TOTAL_SLOTS - dragState.previewSlot, targetSlot - dragState.previewSlot + 1));
       setDragState(prev => prev ? { ...prev, previewDuration: newDuration } : null);
     }
@@ -224,169 +214,137 @@ export function WeeklyCalendar({ weekDays, items, projectNames, onAdd, onUpdate,
 
   return (
     <>
-      <ProgressBar items={items} />
+    <ProgressBar items={items} />
+    {copiedItem && (
+      <div className="copy-mode-banner">
+        <span>複製模式：點擊任意時間格貼上「{copiedItem.title}」</span>
+        <button className="copy-cancel-btn" onClick={() => setCopiedItem(null)}>✕ 取消複製</button>
+      </div>
+    )}
+    <div className="calendar-wrap">
+      <div className="calendar-header">
+        <div className="time-gutter" />
+        {weekDays.map((date, i) => (
+          <div key={i} className="day-header">
+            <span className="day-name">{DAY_NAMES[i]}</span>
+            <span className="day-date">{formatDateHeader(date)}</span>
+          </div>
+        ))}
+      </div>
 
-      {copiedItem && (
-        <div className="copy-mode-banner">
-          <span>複製模式：點擊任意時間格貼上「{copiedItem.title}」</span>
-          <button className="copy-cancel-btn" onClick={() => setCopiedItem(null)}>✕ 取消複製</button>
-        </div>
-      )}
-
-      {/* 手機日期切換列 */}
-      {isMobile && (
-        <div className="mobile-day-nav">
-          <button
-            className="mobile-day-btn"
-            onClick={() => setActiveDayIndex(i => Math.max(0, i - 1))}
-            disabled={activeDayIndex === 0}
-          >‹</button>
-          <span className="mobile-day-label">
-            {DAY_NAMES[activeDayIndex]} {weekDays[activeDayIndex] ? formatDateHeader(weekDays[activeDayIndex]) : ''}
-          </span>
-          <button
-            className="mobile-day-btn"
-            onClick={() => setActiveDayIndex(i => Math.min(4, i + 1))}
-            disabled={activeDayIndex === 4}
-          >›</button>
-        </div>
-      )}
-
-      <div className="calendar-wrap">
-        <div className="calendar-header">
-          <div className="time-gutter" />
-          {weekDays.map((date, i) => (
+      <div
+        className="calendar-body"
+        ref={gridBodyRef}
+        onPointerMove={dragState ? handlePointerMove : undefined}
+        onPointerUp={dragState ? handlePointerUp : undefined}
+        onPointerCancel={() => setDragState(null)}
+        style={{
+          cursor: dragState
+            ? (dragState.type === 'move' ? 'grabbing' : 'ns-resize')
+            : copiedItem ? 'copy' : 'default',
+          ['--grid-h' as string]: `${gridH}px`,
+        }}
+      >
+        {/* Time gutter */}
+        <div className="time-gutter">
+          {TIME_LABELS.map((label, i) => (
             <div
-              key={i}
-              className={`day-header${isMobile ? (i === activeDayIndex ? ' mobile-active' : '') : ''}`}
+              key={label}
+              className="time-label"
+              style={{ top: slotToY(i, slotH) }}
             >
-              <span className="day-name">{DAY_NAMES[i]}</span>
-              <span className="day-date">{formatDateHeader(date)}</span>
+              {label}
             </div>
           ))}
+          <div className="break-label" style={{ top: MORNING_SLOTS * slotH }}>午休</div>
         </div>
 
-        <div
-          className="calendar-body"
-          ref={gridBodyRef}
-          onPointerMove={dragState ? handlePointerMove : undefined}
-          onPointerUp={dragState ? handlePointerUp : undefined}
-          onPointerCancel={() => setDragState(null)}
-          style={{
-            cursor: dragState
-              ? (dragState.type === 'move' ? 'grabbing' : 'ns-resize')
-              : copiedItem ? 'copy' : 'default',
-            ['--grid-h' as string]: `${gridH}px`,
-          }}
-        >
-          {/* Time gutter */}
-          <div className="time-gutter">
-            {TIME_LABELS.map((label, i) => (
-              <div
-                key={label}
-                className="time-label"
-                style={{ top: slotToY(i, slotH) }}
-              >
-                {label}
-              </div>
-            ))}
-            {/* 18:30 結束時間標籤 */}
+        {/* Day columns */}
+        {weekDays.map((_, dayIdx) => {
+          const dayItems = items.filter(i => i.day === dayIdx);
+
+          return (
             <div
-              className="time-label"
-              style={{ top: slotToY(TOTAL_SLOTS, slotH) }}
+              key={dayIdx}
+              className="day-column"
+              ref={el => { dayColRefs.current[dayIdx] = el; }}
+              style={{ height: gridH }}
+              onClick={e => handleGridClick(e, dayIdx)}
             >
-              18:30
-            </div>
-            <div className="break-label" style={{ top: MORNING_SLOTS * slotH }}>午休</div>
-          </div>
+              {/* Slot grid lines */}
+              {Array.from({ length: TOTAL_SLOTS }, (_, s) => (
+                <div
+                  key={s}
+                  className={`slot-line${s === MORNING_SLOTS ? ' after-morning' : ''}`}
+                  style={{ top: slotToY(s, slotH) + (s === MORNING_SLOTS ? BREAK_HEIGHT : 0) }}
+                />
+              ))}
 
-          {/* Day columns */}
-          {weekDays.map((_, dayIdx) => {
-            const dayItems = items.filter(i => i.day === dayIdx);
-            const isActive = !isMobile || dayIdx === activeDayIndex;
+              {/* Break separator */}
+              <div className="break-sep" style={{ top: MORNING_SLOTS * slotH }} />
 
-            return (
-              <div
-                key={dayIdx}
-                className={`day-column${isMobile ? (isActive ? ' mobile-active' : '') : ''}`}
-                ref={el => { dayColRefs.current[dayIdx] = el; }}
-                style={{ height: gridH }}
-                onClick={e => handleGridClick(e, dayIdx)}
-              >
-                {/* Slot grid lines */}
-                {Array.from({ length: TOTAL_SLOTS }, (_, s) => (
-                  <div
-                    key={s}
-                    className={`slot-line${s === MORNING_SLOTS ? ' after-morning' : ''}`}
-                    style={{ top: slotToY(s, slotH) + (s === MORNING_SLOTS ? BREAK_HEIGHT : 0) }}
+              {/* Work items */}
+              {dayItems.map(item => {
+                const isThisDragging = dragState?.itemId === item.id;
+                const displayItem = isThisDragging && dragState
+                  ? {
+                    ...item,
+                    day: dragState.type === 'move' ? dragState.previewDay : item.day,
+                    startSlot: dragState.type === 'move' ? dragState.previewSlot : item.startSlot,
+                    duration: dragState.type === 'resize' ? dragState.previewDuration : item.duration,
+                  }
+                  : item;
+
+                if (displayItem.day !== dayIdx) return null;
+
+                return (
+                  <WorkItemCard
+                    key={item.id}
+                    item={displayItem}
+                    isDragging={isThisDragging && !!dragState}
+                    isCopied={copiedItem?.id === item.id}
+                    onPointerDown={e => handleItemPointerDown(e, item)}
+                    onResizePointerDown={e => handleResizePointerDown(e, item)}
+                    onClick={() => { if (!copiedItem) handleItemClick(item); }}
+                    onToggleComplete={() => handleToggleComplete(item.id, item.completed)}
+                    onCopy={() => handleCopy(item)}
                   />
-                ))}
+                );
+              })}
 
-                {/* Break separator */}
-                <div className="break-sep" style={{ top: MORNING_SLOTS * slotH }} />
-
-                {/* Work items */}
-                {dayItems.map(item => {
-                  const isThisDragging = dragState?.itemId === item.id;
-                  const displayItem = isThisDragging && dragState
-                    ? {
-                      ...item,
-                      day: dragState.type === 'move' ? dragState.previewDay : item.day,
-                      startSlot: dragState.type === 'move' ? dragState.previewSlot : item.startSlot,
-                      duration: dragState.type === 'resize' ? dragState.previewDuration : item.duration,
-                    }
-                    : item;
-
-                  if (displayItem.day !== dayIdx) return null;
-
-                  return (
-                    <WorkItemCard
-                      key={item.id}
-                      item={displayItem}
-                      isDragging={isThisDragging && !!dragState}
-                      isCopied={copiedItem?.id === item.id}
-                      onPointerDown={e => handleItemPointerDown(e, item)}
-                      onResizePointerDown={e => handleResizePointerDown(e, item)}
-                      onClick={() => { if (!copiedItem) handleItemClick(item); }}
-                      onToggleComplete={() => handleToggleComplete(item.id, item.completed)}
-                      onCopy={() => handleCopy(item)}
-                    />
-                  );
-                })}
-
-                {/* Ghost during cross-day drag */}
-                {dragState?.type === 'move' &&
-                  dragState.previewDay === dayIdx &&
-                  previewItem &&
-                  dragState.originalDay !== dayIdx && (
-                    <WorkItemCard
-                      key="ghost"
-                      item={{ ...previewItem, day: dayIdx, startSlot: dragState.previewSlot }}
-                      isDragging
-                      isPreview
-                      onPointerDown={() => {}}
-                      onResizePointerDown={() => {}}
-                      onClick={() => {}}
-                      onToggleComplete={() => {}}
-                      onCopy={() => {}}
-                    />
-                  )}
-              </div>
-            );
-          })}
-        </div>
-
-        {modal && (
-          <WorkItemModal
-            item={modal}
-            projectNames={projectNames}
-            workTitles={workTitles}
-            onSave={handleModalSave}
-            onDelete={'id' in modal && modal.id ? () => { onRemove((modal as WorkItem).id); setModal(null); } : undefined}
-            onClose={() => setModal(null)}
-          />
-        )}
+              {/* Ghost during cross-day drag */}
+              {dragState?.type === 'move' &&
+                dragState.previewDay === dayIdx &&
+                previewItem &&
+                dragState.originalDay !== dayIdx && (
+                  <WorkItemCard
+                    key="ghost"
+                    item={{ ...previewItem, day: dayIdx, startSlot: dragState.previewSlot }}
+                    isDragging
+                    isPreview
+                    onPointerDown={() => {}}
+                    onResizePointerDown={() => {}}
+                    onClick={() => {}}
+                    onToggleComplete={() => {}}
+                    onCopy={() => {}}
+                  />
+                )}
+            </div>
+          );
+        })}
       </div>
+
+      {modal && (
+        <WorkItemModal
+          item={modal}
+          projectNames={projectNames}
+          workTitles={workTitles}
+          onSave={handleModalSave}
+          onDelete={'id' in modal && modal.id ? () => { onRemove((modal as WorkItem).id); setModal(null); } : undefined}
+          onClose={() => setModal(null)}
+        />
+      )}
+    </div>
     </>
   );
 }
