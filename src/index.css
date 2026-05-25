@@ -887,3 +887,4 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .work-item-project { font-size: 12px !important; margin-top: 2px !important; }
 .item-check { top: 6px !important; left: 6px !important; width: 16px !important; height: 16px !important; }
 
+.work-item-title { word-break: break-all !important; }
