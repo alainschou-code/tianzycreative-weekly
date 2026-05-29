@@ -47,7 +47,8 @@ export const ITEM_COLORS = [
   '#C2E2F2', '#B8E5C8', '#EDD0AC', '#D0C8EC',
   '#ECC0C0', '#AEDED8', '#E8D8A4', '#E8C4E0',
   '#C8D8C0', '#F2E2C2', '#C0CCE0', '#E0D4C0', '#D4E0D0',
-  '#E8E0D4',
+  '#E8E0D4', '#D8CCC0', '#C4D4C8', '#E4D8E8', '#D0E4E0',
+  '#F0E8D8', '#D8E0EC', '#E0E8D4',
 ];
 
 export const DAY_NAMES = ['週一', '週二', '週三', '週四', '週五'];
