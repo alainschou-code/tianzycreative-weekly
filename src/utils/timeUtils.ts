@@ -44,8 +44,8 @@ export const formatDuration = (slots: number): string => {
 };
 
 export const ITEM_COLORS = [
-  '#4A90D9', '#5BB974', '#E8935A', '#9B7FD4',
-  '#E05C5C', '#4ABCB4', '#F0C74D', '#E06FAA',
+  '#C2E2F2', '#B8E5C8', '#EDD0AC', '#D0C8EC',
+  '#ECC0C0', '#AEDED8', '#E8D8A4', '#E8C4E0',
 ];
 
 export const DAY_NAMES = ['週一', '週二', '週三', '週四', '週五'];

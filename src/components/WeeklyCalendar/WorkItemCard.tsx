@@ -65,7 +65,7 @@ export function WorkItemCard({
         borderRadius: 6,
         padding: '6px 7px 16px 32px',
         cursor: 'grab',
-        color: '#fff',
+        color: '#1a1a1a',
         overflow: 'hidden',
         boxShadow: '0 1px 3px rgba(0,0,0,.2)',
         zIndex: 10,
